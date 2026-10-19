@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="color-scheme" content="light dark"/>
+<meta name="description" content="Crop images with rounded corners or a circle mask — 100% local, nothing uploaded. Works offline in any browser."/>
+<title>Crop Studio — Image Cropper with Rounded Corners</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Cpath d='M8.12 8.12 12 12'/%3E%3Cpath d='M20 4 8.12 15.88'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M14.8 14.8 20 20'/%3E%3C/svg%3E"/>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f7f7f8; --card:#ffffff; --text:#18181b; --muted:#71717a; --border:#e4e4e7;
+  --accent:#6366f1; --accent-soft:rgba(99,102,241,.12); --danger:#ef4444;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.06);
+}
+[data-theme="dark"]{
+  --bg:#0c0c0e; --card:#161618; --text:#f4f4f5; --muted:#a1a1aa; --border:#2a2a2e;
+  --accent:#818cf8; --accent-soft:rgba(129,140,248,.16); --danger:#ef4444;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
+}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Noto Sans",sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+.top{
+  position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;border-bottom:1px solid var(--border);
+  background:var(--bg);background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand svg{width:19px;height:19px;color:var(--accent)}
+.icon-btn{
+  width:36px;height:36px;display:grid;place-items:center;border-radius:10px;
+  border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;
+}
+.icon-btn svg{width:17px;height:17px}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+#themeBtn .sun{display:none}
+[data-theme="dark"] #themeBtn .sun{display:block}
+[data-theme="dark"] #themeBtn .moon{display:none}
+main{flex:1;width:100%;max-width:1080px;margin:0 auto;padding:22px 20px 40px}
+
+/* ---- upload ---- */
+.upload-card{max-width:560px;margin:7vh auto 0}
+.dz{
+  background:var(--card);border:1.5px dashed var(--border);border-radius:20px;
+  padding:46px 32px;text-align:center;cursor:pointer;box-shadow:var(--shadow);
+  transition:border-color .15s,background .15s;
+}
+.dz:hover,.dz.over{border-color:var(--accent);background:var(--accent-soft)}
+.dz .icon-ring{
+  width:72px;height:72px;border-radius:50%;display:grid;place-items:center;
+  margin:0 auto;background:var(--accent-soft);color:var(--accent);
+}
+.dz .icon-ring svg{width:32px;height:32px}
+.dz h1{font-size:20px;margin:16px 0 2px}
+.dz p{color:var(--muted);margin:7px 0;font-size:14px}
+.dz .privacy{font-size:12.5px;margin-top:18px}
+kbd{
+  background:var(--card);border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:6px;padding:1px 6px;font-size:12px;font-family:inherit;
+}
+
+/* ---- editor ---- */
+.editor{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+.stage{
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;border:1px solid var(--border);border-radius:16px;
+  min-height:320px;max-height:74vh;overflow:auto;touch-action:none;
+  background:repeating-conic-gradient(rgba(128,128,128,.16) 0% 25%,transparent 0% 50%) 0 0/20px 20px,var(--card);
+  box-shadow:var(--shadow);
+}
+#cv{touch-action:none;border-radius:2px}
+.panel{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:18px;display:flex;flex-direction:column;gap:20px;box-shadow:var(--shadow);
+}
+.sec h3{
+  font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);margin:0 0 9px;font-weight:700;
+}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--border);background:transparent;color:var(--text);
+  font-size:12.5px;font-weight:600;cursor:pointer;transition:all .12s;font-family:inherit;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.active:hover{color:#fff}
+.row{display:flex;align-items:center;gap:10px}
+.row label{font-size:13px;color:var(--muted);min-width:50px}
+.row .val{font-size:12.5px;color:var(--muted);min-width:40px;text-align:right}
+input[type=range]{flex:1;accent-color:var(--accent);margin:0}
+select{
+  flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);font-size:13.5px;font-family:inherit;cursor:pointer;
+}
+input[type=color]{
+  width:20px;height:20px;border:2px solid var(--border);border-radius:50%;
+  padding:0;background:none;cursor:pointer;appearance:none;
+}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:50%}
+input[type=color]::-moz-color-swatch{border:none;border-radius:50%}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:10px 14px;border-radius:12px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);font-weight:600;font-size:13.5px;
+  cursor:pointer;font-family:inherit;transition:all .12s;
+}
+.btn svg{width:15px;height:15px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08);color:#fff}
+.btn.ghost{background:transparent;color:var(--muted)}
+.btn .sep{flex:0 0 1px;height:14px;background:var(--border)}
+.btnstack{display:flex;flex-direction:column;gap:8px}
+.info{
+  font-size:12.5px;color:var(--muted);background:var(--bg);
+  border:1px solid var(--border);border-radius:10px;padding:8px 11px;line-height:1.6;
+}
+.info b{color:var(--text)}
+.hintline{font-size:11.5px;color:var(--muted);margin:9px 0 0;line-height:1.5}
+
+footer{
+  padding:18px 20px;text-align:center;color:var(--muted);
+  font-size:12.5px;border-top:1px solid var(--border);
+}
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);opacity:0;
+  pointer-events:none;background:var(--text);color:var(--bg);
+  padding:9px 18px;border-radius:999px;font-size:13.5px;font-weight:600;
+  transition:all .25s;z-index:50;max-width:82vw;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:var(--danger);color:#fff}
+
+@media (max-width:880px){
+  .editor{grid-template-columns:1fr}
+  .stage{min-height:260px;max-height:56vh}
+  main{padding:16px 14px 32px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+    Crop Studio
+  </div>
+  <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- upload view -->
+  <section id="uploadView" class="upload-card">
+    <div class="dz" id="dz" role="button" tabindex="0" aria-label="Upload an image">
+      <div class="icon-ring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+      </div>
+      <h1>Drop an image here</h1>
+      <p>or browse your files — PNG, JPEG, WebP, GIF</p>
+      <button class="btn primary" id="browseBtn" type="button" style="width:auto;margin:14px auto 0;padding:10px 22px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        Browse files
+      </button>
+      <p class="hintline">You can also paste with <kbd>Ctrl</kbd> + <kbd>V</kbd></p>
+      <p class="privacy">100% local — your image never leaves your computer</p>
+    </div>
+    <input id="fileInput" type="file" accept="image/*" hidden/>
+  </section>
+
+  <!-- editor view -->
+  <section id="editorView" class="editor" hidden>
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+    </div>
+    <aside class="panel">
+      <div class="sec">
+        <h3>Aspect ratio</h3>
+        <div class="chips" id="ratioChips">
+          <button class="chip active" data-r="free" type="button">Free</button>
+          <button class="chip" data-r="1/1" type="button">1:1</button>
+          <button class="chip" data-r="4/3" type="button">4:3</button>
+          <button class="chip" data-r="3/4" type="button">3:4</button>
+          <button class="chip" data-r="16/9" type="button">16:9</button>
+          <button class="chip" data-r="9/16" type="button">9:16</button>
+          <button class="chip" data-r="3/2" type="button">3:2</button>
+          <button class="chip" data-r="2/3" type="button">2:3</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>Corners</h3>
+        <div class="row">
+          <input type="range" id="radius" min="0" max="100" value="0" aria-label="Corner radius"/>
+          <span class="val" id="radiusVal">0%</span>
+        </div>
+        <div class="chips" id="cornerChips" style="margin-top:9px">
+          <button class="chip" data-c="0" type="button">Square</button>
+          <button class="chip" data-c="24" type="button">Rounded</button>
+          <button class="chip" data-c="100" type="button">Pill</button>
+          <button class="chip" data-c="circle" type="button">Circle</button>
+        </div>
+        <p class="hintline">Tip: 100% on a 1:1 crop gives a perfect circle.</p>
+      </div>
+      <div class="sec">
+        <h3>Background</h3>
+        <div class="chips" id="bgChips">
+          <button class="chip active" data-b="transparent" type="button">Transparent</button>
+          <button class="chip" data-b="white" type="button">White</button>
+          <button class="chip" data-b="black" type="button">Black</button>
+          <label class="chip" data-b="custom">Custom<input type="color" id="customColor" value="#ff6b6b" aria-label="Custom background color"/></label>
+        </div>
+        <p class="hintline">Transparent corners are kept in PNG / WebP exports.</p>
+      </div>
+      <div class="sec">
+        <h3>Transform</h3>
+        <div class="chips">
+          <button class="chip" id="rotL" type="button">Rotate L</button>
+          <button class="chip" id="rotR" type="button">Rotate R</button>
+          <button class="chip" id="flipH" type="button">Flip H</button>
+          <button class="chip" id="flipV" type="button">Flip V</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>Export</h3>
+        <div class="row" style="margin-bottom:10px">
+          <label for="format">Format</label>
+          <select id="format">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </div>
+        <div class="row" id="qualityRow" hidden style="margin-bottom:10px">
+          <label for="quality">Quality</label>
+          <input type="range" id="quality" min="50" max="100" value="92"/>
+          <span class="val" id="qualityVal">92%</span>
+        </div>
+        <div class="info" id="cropInfo">—</div>
+        <div class="btnstack" style="margin-top:12px">
+          <button class="btn primary" id="downloadBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Download
+          </button>
+          <button class="btn" id="copyBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Copy to clipboard
+          </button>
+          <button class="btn ghost" id="newBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            New image
+          </button>
+        </div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<footer>Crop Studio — runs 100% in your browser, even offline. Your images never leave your computer.</footer>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var clamp = function(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); };
+
+  var uploadView=$('uploadView'), editorView=$('editorView'), dz=$('dz'), fileInput=$('fileInput'),
+      cv=$('cv'), stage=$('stage'), toastEl=$('toast'), themeBtn=$('themeBtn');
+
+  var state = {
+    img:null, w:0, h:0,
+    crop:{x:0,y:0,w:0,h:0},   // in natural image pixels
+    ratio:null,               // w/h number or null (free)
+    radius:0,                 // 0..100 (% of half min-dimension)
+    bg:'transparent', custom:'#ff6b6b',
+    format:'png', quality:92
+  };
+  var scale=1, dpr=1, drag=null, toastTimer=null;
+
+  /* ---------- helpers ---------- */
+  function rrPath(g,x,y,w,h,r){
+    r=Math.max(0,Math.min(r,Math.min(w,h)/2));
+    if (typeof g.roundRect==='function'){ g.roundRect(x,y,w,h,r); return; }
+    g.moveTo(x+r,y);
+    g.arcTo(x+w,y,x+w,y+h,r);
+    g.arcTo(x+w,y+h,x,y+h,r);
+    g.arcTo(x,y+h,x,y,r);
+    g.arcTo(x,y,x+w,y,r);
+    g.closePath();
+  }
+  function toast(msg,err){
+    toastEl.textContent=msg;
+    toastEl.classList.toggle('err',!!err);
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){ toastEl.classList.remove('show'); },2600);
+  }
+
+  /* ---------- display ---------- */
+  function fitDisplay(){
+    if(!state.img) return;
+    dpr=window.devicePixelRatio||1;
+    var maxW=Math.max(60,stage.clientWidth-32);
+    var maxH=Math.max(200,stage.clientHeight-32);
+    scale=clamp(Math.min(maxW/state.w,maxH/state.h),0.02,2);
+  }
+  function cropDisp(){ return {x:state.crop.x*scale,y:state.crop.y*scale,w:state.crop.w*scale,h:state.crop.h*scale}; }
+  function cornerR(r){ return (Math.min(r.w,r.h)/2)*(state.radius/100); }
+  function handlePts(r){
+    var xm=r.x+r.w/2, ym=r.y+r.h/2;
+    return { nw:[r.x,r.y], n:[xm,r.y], ne:[r.x+r.w,r.y], e:[r.x+r.w,ym],
+             se:[r.x+r.w,r.y+r.h], s:[xm,r.y+r.h], sw:[r.x,r.y+r.h], w:[r.x,ym] };
+  }
+  function render(){
+    if(!state.img) return;
+    var cw=Math.max(1,Math.round(state.w*scale)), ch=Math.max(1,Math.round(state.h*scale));
+    cv.width=Math.round(cw*dpr); cv.height=Math.round(ch*dpr);
+    cv.style.width=cw+'px'; cv.style.height=ch+'px';
+    var g=cv.getContext('2d');
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.clearRect(0,0,cw,ch);
+    g.imageSmoothingQuality='high';
+    g.drawImage(state.img,0,0,cw,ch);
+    var r=cropDisp(), rad=cornerR(r);
+    /* dim outside the rounded crop area */
+    g.save();
+    g.beginPath(); g.rect(0,0,cw,ch); rrPath(g,r.x,r.y,r.w,r.h,rad);
+    g.fillStyle='rgba(10,10,14,0.55)'; g.fill('evenodd');
+    g.restore();
+    /* rule-of-thirds grid, clipped to rounded shape */
+    g.save();
+    g.beginPath(); rrPath(g,r.x,r.y,r.w,r.h,rad); g.clip();
+    g.strokeStyle='rgba(255,255,255,0.4)'; g.lineWidth=1;
+    g.beginPath();
+    for(var i=1;i<3;i++){
+      g.moveTo(r.x+r.w*i/3,r.y); g.lineTo(r.x+r.w*i/3,r.y+r.h);
+      g.moveTo(r.x,r.y+r.h*i/3); g.lineTo(r.x+r.w,r.y+r.h*i/3);
+    }
+    g.stroke();
+    g.restore();
+    /* border */
+    g.save();
+    g.beginPath(); rrPath(g,r.x,r.y,r.w,r.h,rad);
+    g.strokeStyle='rgba(255,255,255,0.95)'; g.lineWidth=1.6; g.stroke();
+    g.restore();
+    /* handles */
+    var pts=handlePts(r);
+    g.save();
+    for(var k in pts){
+      g.beginPath(); g.arc(pts[k][0],pts[k][1],4.5,0,Math.PI*2);
+      g.fillStyle='#ffffff'; g.fill();
+      g.strokeStyle='rgba(0,0,0,0.45)'; g.lineWidth=1.2; g.stroke();
+    }
+    g.restore();
+  }
+  function updateInfo(){
+    var w=Math.round(state.crop.w), h=Math.round(state.crop.h);
+    $('cropInfo').innerHTML='Image <b>'+state.w+' &times; '+state.h+'</b> px &middot; Export <b>'+w+' &times; '+h+'</b> px';
+  }
+
+  /* ---------- crop math ---------- */
+  function applyRatio(R,keepRect){
+    state.ratio=R;
+    if(R==null){
+      if(!keepRect) state.crop={x:0,y:0,w:state.w,h:state.h};
+    }else{
+      var W=state.w, H=W/R;
+      if(H>state.h){ H=state.h; W=H*R; }
+      state.crop={x:(state.w-W)/2,y:(state.h-H)/2,w:W,h:H};
+    }
+  }
+  function refitCrop(){ applyRatio(state.ratio,false); }
+  function anchorFor(h,r){
+    var a={x:0,y:0};
+    if(h.indexOf('w')>=0) a.x=r.x+r.w; else if(h.indexOf('e')>=0) a.x=r.x;
+    if(h.indexOf('n')>=0) a.y=r.y+r.h; else if(h.indexOf('s')>=0) a.y=r.y;
+    return a;
+  }
+  function applyResize(handle,pn){
+    var o=drag.orig, a=drag.anchor, R=state.ratio;
+    var MIN=Math.max(8,20/scale);
+    var px=clamp(pn.x,0,state.w), py=clamp(pn.y,0,state.h);
+    var hasW=handle.indexOf('w')>=0, hasE=handle.indexOf('e')>=0,
+        hasN=handle.indexOf('n')>=0, hasS=handle.indexOf('s')>=0;
+    if(!R){
+      var x0=o.x,x1=o.x+o.w,y0=o.y,y1=o.y+o.h;
+      if(hasW) x0=clamp(px,0,a.x-MIN);
+      if(hasE) x1=clamp(px,a.x+MIN,state.w);
+      if(hasN) y0=clamp(py,0,a.y-MIN);
+      if(hasS) y1=clamp(py,a.y+MIN,state.h);
+      state.crop={x:x0,y:y0,w:x1-x0,h:y1-y0};
+      return;
+    }
+    var isCorner=(hasW||hasE)&&(hasN||hasS);
+    if(isCorner){
+      var dirX=hasW?-1:1, dirY=hasN?-1:1;
+      var maxW=dirX<0?a.x:state.w-a.x;
+      var maxH=dirY<0?a.y:state.h-a.y;
+      var W=clamp(Math.max(Math.abs(px-a.x),Math.abs(py-a.y)*R),MIN,Math.max(MIN,Math.min(maxW,maxH*R)));
+      var H=W/R;
+      state.crop={x:dirX<0?a.x-W:a.x, y:dirY<0?a.y-H:a.y, w:W, h:H};
+    }else if(hasW||hasE){
+      var dx=hasW?-1:1;
+      var mw=dx<0?a.x:state.w-a.x;
+      var W2=clamp(Math.abs(px-a.x),MIN,Math.max(MIN,mw));
+      var H2=W2/R;
+      if(H2>state.h){ H2=state.h; W2=H2*R; W2=Math.min(W2,mw); H2=W2/R; }
+      var cy=o.y+o.h/2;
+      state.crop={x:dx<0?a.x-W2:a.x, y:clamp(cy-H2/2,0,state.h-H2), w:W2, h:H2};
+    }else{
+      var dy=hasN?-1:1;
+      var mh=dy<0?a.y:state.h-a.y;
+      var H3=clamp(Math.abs(py-a.y),MIN,Math.max(MIN,mh));
+      var W3=H3*R;
+      if(W3>state.w){ W3=state.w; H3=W3/R; H3=Math.min(H3,mh); W3=H3*R; }
+      var cx=o.x+o.w/2;
+      state.crop={x:clamp(cx-W3/2,0,state.w-W3), y:dy<0?a.y-H3:a.y, w:W3, h:H3};
+    }
+  }
+
+  /* ---------- pointer interaction ---------- */
+  function evPos(e){
+    var b=cv.getBoundingClientRect();
+    return { x:(e.clientX-b.left)*(cv.clientWidth/b.width), y:(e.clientY-b.top)*(cv.clientHeight/b.height) };
+  }
+  var CURS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',
+            n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
+  function hitHandle(p,r){
+    var pts=handlePts(r), best=null, bd=15;
+    for(var k in pts){
+      var d=Math.hypot(p.x-pts[k][0],p.y-pts[k][1]);
+      if(d<bd){ bd=d; best=k; }
+    }
+    return best;
+  }
+  function inRect(p,r){ return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h; }
+
+  stage.addEventListener('pointerdown',function(e){
+    if(!state.img) return;
+    var p=evPos(e), r=cropDisp(), h=hitHandle(p,r);
+    if(h){
+      try{stage.setPointerCapture(e.pointerId);}catch(_){}
+      drag={mode:h, orig:{x:state.crop.x,y:state.crop.y,w:state.crop.w,h:state.crop.h}, anchor:anchorFor(h,state.crop)};
+    }else if(inRect(p,r)){
+      try{stage.setPointerCapture(e.pointerId);}catch(_){}
+      drag={mode:'move', start:{x:p.x/scale,y:p.y/scale},
+            orig:{x:state.crop.x,y:state.crop.y,w:state.crop.w,h:state.crop.h}};
+    }
+    if(drag) stage.style.cursor=(drag.mode==='move')?'grabbing':CURS[drag.mode];
+    e.preventDefault();
+  });
+  stage.addEventListener('pointermove',function(e){
+    if(!state.img) return;
+    var p=evPos(e);
+    if(drag){
+      var pn={x:p.x/scale,y:p.y/scale};
+      if(drag.mode==='move'){
+        state.crop.x=clamp(drag.orig.x+(pn.x-drag.start.x),0,state.w-state.crop.w);
+        state.crop.y=clamp(drag.orig.y+(pn.y-drag.start.y),0,state.h-state.crop.h);
+      }else{
+        applyResize(drag.mode,pn);
+      }
+      render(); updateInfo();
+    }else{
+      var h=hitHandle(p,cropDisp());
+      stage.style.cursor=h?CURS[h]:(inRect(p,cropDisp())?'grab':'default');
+    }
+  });
+  function endDrag(){ if(drag){ drag=null; stage.style.cursor='default'; render(); } }
+  stage.addEventListener('pointerup',endDrag);
+  stage.addEventListener('pointercancel',endDrag);
+  stage.addEventListener('dblclick',function(){ if(state.img){ refitCrop(); render(); updateInfo(); } });
+
+  /* ---------- image loading & transforms ---------- */
+  function loadFile(file){
+    if(!file) return;
+    if(!file.type||file.type.indexOf('image/')!==0){ toast('Please choose an image file',true); return; }
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){ URL.revokeObjectURL(url); startEditor(img); };
+    img.onerror=function(){ URL.revokeObjectURL(url); toast('Could not read that image',true); };
+    img.src=url;
+  }
+  function startEditor(img){
+    state.img=img; state.w=img.naturalWidth; state.h=img.naturalHeight;
+    if(state.ratio!=null) applyRatio(state.ratio,false);
+    else state.crop={x:0,y:0,w:state.w,h:state.h};
+    uploadView.hidden=true; editorView.hidden=false;
+    fitDisplay(); render(); updateInfo();
+  }
+  function transform(type){
+    if(!state.img) return;
+    var w=state.w,h=state.h;
+    var c=document.createElement('canvas');
+    if(type==='rr'||type==='rl'){ c.width=h; c.height=w; } else { c.width=w; c.height=h; }
+    var g=c.getContext('2d');
+    if(type==='rr'){ g.translate(h,0); g.rotate(Math.PI/2); }
+    else if(type==='rl'){ g.translate(0,w); g.rotate(-Math.PI/2); }
+    else if(type==='fh'){ g.translate(w,0); g.scale(-1,1); }
+    else if(type==='fv'){ g.translate(0,h); g.scale(1,-1); }
+    g.drawImage(state.img,0,0);
+    state.img=c; state.w=c.width; state.h=c.height;
+    refitCrop(); fitDisplay(); render(); updateInfo();
+  }
+
+  /* ---------- export ---------- */
+  function exportCanvas(){
+    var cw=Math.max(1,Math.round(state.crop.w)), ch=Math.max(1,Math.round(state.crop.h));
+    var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+    var g=c.getContext('2d');
+    var rad=(Math.min(cw,ch)/2)*(state.radius/100);
+    if(state.bg!=='transparent'||state.format==='jpeg'){
+      g.fillStyle=(state.bg==='black')?'#000000':(state.bg==='custom')?state.custom:'#ffffff';
+      g.fillRect(0,0,cw,ch);
+    }
+    var p=new Path2D(); rrPath(p,0,0,cw,ch,rad);
+    g.save(); g.clip(p);
+    g.imageSmoothingQuality='high';
+    g.drawImage(state.img,state.crop.x,state.crop.y,state.crop.w,state.crop.h,0,0,cw,ch);
+    g.restore();
+    return c;
+  }
+  function exportBlob(){
+    var c=exportCanvas();
+    var mime=(state.format==='png')?'image/png':(state.format==='jpeg')?'image/jpeg':'image/webp';
+    return new Promise(function(res,rej){
+      c.toBlob(function(b){ b?res(b):rej(new Error('encode failed')); },mime,state.format==='png'?undefined:state.quality/100);
+    });
+  }
+  function doDownload(){
+    if(!state.img) return;
+    exportBlob().then(function(blob){
+      var ext=(state.format==='jpeg')?'jpg':state.format;
+      var name='crop-'+Math.round(state.crop.w)+'x'+Math.round(state.crop.h)+'.'+ext;
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+      toast('Saved '+name);
+    }).catch(function(){ toast('Export failed',true); });
+  }
+  function doCopy(){
+    if(!state.img) return;
+    if(typeof ClipboardItem==='undefined'||!navigator.clipboard||!navigator.clipboard.write){
+      toast('Copy not supported here — use Download instead',true); return;
+    }
+    exportBlob().then(function(blob){
+      var ready=(blob.type==='image/png')?Promise.resolve(blob):createImageBitmap(blob).then(function(bmp){
+        var c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+        c.getContext('2d').drawImage(bmp,0,0);
+        return new Promise(function(r){ c.toBlob(r,'image/png'); });
+      });
+      return ready.then(function(png){
+        return navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+      });
+    }).then(function(){ toast('Copied to clipboard — paste anywhere'); })
+      .catch(function(){ toast('Copy failed — your browser blocked it',true); });
+  }
+
+  /* ---------- UI wiring ---------- */
+  function setRadius(v){
+    state.radius=clamp(Math.round(v),0,100);
+    $('radius').value=state.radius;
+    $('radiusVal').textContent=state.radius+'%';
+    var chips=document.querySelectorAll('#cornerChips .chip');
+    for(var i=0;i<chips.length;i++){
+      var b=chips[i];
+      b.classList.toggle('active',b.getAttribute('data-c')!=='circle'&&Number(b.getAttribute('data-c'))===state.radius);
+    }
+  }
+  $('ratioChips').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-r]'); if(!b) return;
+    var all=document.querySelectorAll('#ratioChips .chip');
+    for(var i=0;i<all.length;i++) all[i].classList.toggle('active',all[i]===b);
+    var v=b.getAttribute('data-r');
+    if(v==='free') applyRatio(null,true);
+    else{
+      var p=v.split('/');
+      applyRatio(Number(p[0])/Number(p[1]),false);
+    }
+    render(); updateInfo();
+  });
+  $('cornerChips').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-c]'); if(!b) return;
+    if(b.getAttribute('data-c')==='circle'){
+      var all=document.querySelectorAll('#ratioChips .chip');
+      for(var i=0;i<all.length;i++) all[i].classList.toggle('active',all[i].getAttribute('data-r')==='1/1');
+      applyRatio(1,false);
+      setRadius(100);
+    }else{
+      setRadius(Number(b.getAttribute('data-c')));
+    }
+    render(); updateInfo();
+  });
+  $('radius').addEventListener('input',function(e){ setRadius(Number(e.target.value)); render(); updateInfo(); });
+
+  function setBg(v){
+    state.bg=v;
+    var all=document.querySelectorAll('#bgChips [data-b]');
+    for(var i=0;i<all.length;i++) all[i].classList.toggle('active',all[i].getAttribute('data-b')===v);
+  }
+  $('bgChips').addEventListener('click',function(e){
+    var b=e.target.closest('[data-b]'); if(!b) return;
+    setBg(b.getAttribute('data-b'));
+  });
+  $('customColor').addEventListener('input',function(e){
+    state.custom=e.target.value;
+    setBg('custom');
+  });
+
+  $('rotL').addEventListener('click',function(){ transform('rl'); });
+  $('rotR').addEventListener('click',function(){ transform('rr'); });
+  $('flipH').addEventListener('click',function(){ transform('fh'); });
+  $('flipV').addEventListener('click',function(){ transform('fv'); });
+
+  $('format').addEventListener('change',function(e){
+    state.format=e.target.value;
+    $('qualityRow').hidden=(state.format==='png');
+  });
+  $('quality').addEventListener('input',function(e){
+    state.quality=Number(e.target.value);
+    $('qualityVal').textContent=state.quality+'%';
+  });
+
+  $('downloadBtn').addEventListener('click',doDownload);
+  $('copyBtn').addEventListener('click',doCopy);
+  $('newBtn').addEventListener('click',function(){
+    state.img=null; drag=null;
+    editorView.hidden=true; uploadView.hidden=false;
+    fileInput.value='';
+  });
+  $('browseBtn').addEventListener('click',function(e){ e.stopPropagation(); fileInput.click(); });
+  dz.addEventListener('click',function(){ fileInput.click(); });
+  dz.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('change',function(){
+    if(fileInput.files&&fileInput.files[0]) loadFile(fileInput.files[0]);
+    fileInput.value='';
+  });
+
+  /* drag & drop anywhere */
+  ['dragenter','dragover'].forEach(function(ev){
+    document.addEventListener(ev,function(e){ e.preventDefault(); dz.classList.add('over'); });
+  });
+  document.addEventListener('dragleave',function(e){ dz.classList.remove('over'); });
+  document.addEventListener('drop',function(e){
+    e.preventDefault(); dz.classList.remove('over');
+    var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f) loadFile(f);
+  });
+  /* paste */
+  document.addEventListener('paste',function(e){
+    var items=e.clipboardData&&e.clipboardData.items; if(!items) return;
+    for(var i=0;i<items.length;i++){
+      if(items[i].type&&items[i].type.indexOf('image/')===0){
+        var f=items[i].getAsFile();
+        if(f){ e.preventDefault(); loadFile(f); return; }
+      }
+    }
+  });
+  /* keyboard nudge */
+  document.addEventListener('keydown',function(e){
+    if(editorView.hidden||!state.img) return;
+    var k=e.key;
+    if(k==='ArrowLeft'||k==='ArrowRight'||k==='ArrowUp'||k==='ArrowDown'){
+      var ae=document.activeElement;
+      if(ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
+      e.preventDefault();
+      var s=e.shiftKey?10:1;
+      if(k==='ArrowLeft') state.crop.x=clamp(state.crop.x-s,0,state.w-state.crop.w);
+      if(k==='ArrowRight') state.crop.x=clamp(state.crop.x+s,0,state.w-state.crop.w);
+      if(k==='ArrowUp') state.crop.y=clamp(state.crop.y-s,0,state.h-state.crop.h);
+      if(k==='ArrowDown') state.crop.y=clamp(state.crop.y+s,0,state.h-state.crop.h);
+      render(); updateInfo();
+    }
+  });
+  window.addEventListener('resize',function(){ if(!editorView.hidden){ fitDisplay(); render(); } });
+
+  /* theme */
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    try{ localStorage.setItem('cs-theme',t); }catch(_){}
+  }
+  themeBtn.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+    applyTheme(cur);
+  });
+  (function(){
+    var t=null; try{ t=localStorage.getItem('cs-theme'); }catch(_){}
+    if(t!=='light'&&t!=='dark') t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+    applyTheme(t);
+  })();
+
+  setRadius(0);
+  /* small hook for power users / testing */
+  window.__CS={ state:state, loadFile:loadFile, exportBlob:exportBlob, applyRatio:applyRatio, render:render };
+})();
+</script>
+</body>
+</html>
